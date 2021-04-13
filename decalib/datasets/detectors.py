@@ -28,12 +28,12 @@ class FAN(object):
         '''
         out = self.model.get_landmarks(image)
         if out is None:
-            return [0]
+            return [0], 'no_detection'
         else:
             kpt = out[0].squeeze()
-            left = np.min(kpt[:,0]); right = np.max(kpt[:,0]); 
-            top = np.min(kpt[:,1]); bottom = np.max(kpt[:,1])
-            bbox = [left,top, right, bottom]
+            left, right = np.min(kpt[:,0]), np.max(kpt[:,0])
+            top, bottom = np.min(kpt[:,1]), np.max(kpt[:,1])
+            bbox = [left, top, right, bottom]
             return bbox, 'kpt68'
 
 class MTCNN(object):

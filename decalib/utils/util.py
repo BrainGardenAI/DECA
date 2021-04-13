@@ -68,7 +68,7 @@ def write_obj(obj_name,
               uvfaces=None,
               inverse_face_order=False,
               normal_map=None,
-              ):
+              return_texture=False):
     ''' Save 3D face model with texture. 
     Ref: https://github.com/patrikhuber/eos/blob/bd00155ebae4b1a13b08bf5a991694d682abbada/include/eos/core/Mesh.hpp
     Args:
@@ -150,6 +150,8 @@ def write_obj(obj_name,
                         normal_map
                     )
             cv2.imwrite(texture_name, texture)
+    if return_texture:
+        texture
 
 # ---------------------------- process/generate vertices, normals, faces
 def generate_triangles(h, w, margin_x=2, margin_y=5, mask = None):

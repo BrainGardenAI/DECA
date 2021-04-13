@@ -38,7 +38,9 @@ cfg.model.n_exp = 50
 cfg.model.n_cam = 3
 cfg.model.n_pose = 6
 cfg.model.n_light = 27
+# TODO: change use_tex to something more clear: it doesn't mean we need FlameTex model
 cfg.model.use_tex = False
+cfg.model.no_flametex_model = False
 cfg.model.jaw_type = 'aa' # default use axis angle, another option: euler
 
 ## details
@@ -62,6 +64,27 @@ def get_cfg_defaults():
 def update_cfg(cfg, cfg_file):
     cfg.merge_from_file(cfg_file)
     return cfg.clone()
+
+def set_sex(cfg, sex='g'):
+    if sex == 'g':
+        cfg.model.flame_model_path = os.path.join(cfg.deca_dir, 'data', 'generic_model.pkl')
+    elif sex == 'm':
+        cfg.model.flame_model_path = os.path.join(cfg.deca_dir, 'data', 'male_model.pkl')
+    elif sex == 'f':
+        cfg.model.flame_model_path = os.path.join(cfg.deca_dir, 'data', 'female_model.pkl')
+    return cfg.clone()
+
+def get_sex(cfg):
+    model_name = os.path.splitext(os.path.split(cfg.model.flame_model_path)[1])[0]
+    if 'generic_' in model_name:
+        return 'g'
+    elif 'female_' in model_name:   # very important to have female before male!
+        return 'f'
+    elif 'male_' in model_name:
+        return 'm'
+    else:
+        return 'unknown'
+
 
 def parse_args():
     parser = argparse.ArgumentParser()

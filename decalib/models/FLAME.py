@@ -231,6 +231,7 @@ class FLAMETex(nn.Module):
             texture_mean = tex_space[mu_key].reshape(1, -1)
             texture_basis = tex_space[pc_key].reshape(-1, n_pc)
 
+
         elif config.tex_type == 'FLAME':
             mu_key = 'mean'
             pc_key = 'tex_dir'
@@ -247,6 +248,7 @@ class FLAMETex(nn.Module):
         num_components = texture_basis.shape[1]
         texture_mean = torch.from_numpy(texture_mean).float()[None,...]
         texture_basis = torch.from_numpy(texture_basis[:,:n_tex]).float()[None,...]
+
         self.register_buffer('texture_mean', texture_mean)
         self.register_buffer('texture_basis', texture_basis)
 

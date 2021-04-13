@@ -24,6 +24,7 @@ from time import time
 from skimage.io import imread
 import cv2
 import pickle
+from PIL import Image
 from .utils.renderer import SRenderY
 from .models.encoders import ResnetEncoder
 from .models.FLAME import FLAME, FLAMETex
@@ -33,6 +34,7 @@ from .utils.rotation_converter import batch_euler2axis
 from .datasets import datasets
 from .utils.config import cfg
 torch.backends.cudnn.benchmark = True
+
 
 class DECA(object):
     def __init__(self, config=None, device='cuda'):
@@ -58,7 +60,8 @@ class DECA(object):
         fixed_dis = np.load(model_cfg.fixed_displacement_path)
         self.fixed_uv_dis = torch.tensor(fixed_dis).float().to(self.device)
         # mean texture
-        mean_texture = imread(model_cfg.mean_tex_path).astype(np.float32)/255.; mean_texture = torch.from_numpy(mean_texture.transpose(2,0,1))[None,:,:,:].contiguous()
+        mean_texture = imread(model_cfg.mean_tex_path).astype(np.float32)/255.
+        mean_texture = torch.from_numpy(mean_texture.transpose(2,0,1))[None,:,:,:].contiguous()
         self.mean_texture = F.interpolate(mean_texture, [model_cfg.uv_size, model_cfg.uv_size]).to(self.device)
         # dense mesh template, for save detail mesh
         self.dense_template = np.load(model_cfg.dense_template_path, allow_pickle=True, encoding='latin1').item()
@@ -76,7 +79,7 @@ class DECA(object):
         self.E_detail = ResnetEncoder(outsize=self.n_detail).to(self.device)
         # decoders
         self.flame = FLAME(model_cfg).to(self.device)
-        if model_cfg.use_tex:
+        if model_cfg.use_tex and not model_cfg.no_flametex_model:
             self.flametex = FLAMETex(model_cfg).to(self.device)
         self.D_detail = Generator(latent_dim=self.n_detail+self.n_cond, out_channels=1, out_scale=model_cfg.max_z, sample_mode = 'bilinear').to(self.device)
         # resume model
@@ -157,15 +160,18 @@ class DECA(object):
         return codedict
 
     @torch.no_grad()
-    def decode(self, codedict):
+    def decode(self, codedict, has_texture_image=False):
         images = codedict['images']
         batch_size = images.shape[0]
         
         ## decode
         verts, landmarks2d, landmarks3d = self.flame(shape_params=codedict['shape'], expression_params=codedict['exp'], pose_params=codedict['pose'])
         uv_z = self.D_detail(torch.cat([codedict['pose'][:,3:], codedict['exp'], codedict['detail']], dim=1))
-        if self.cfg.model.use_tex:
+
+        if self.cfg.model.use_tex and not self.cfg.model.no_flametex_model:
             albedo = self.flametex(codedict['tex'])
+        elif has_texture_image:
+            albedo = codedict['tex_image']
         else:
             albedo = torch.zeros([batch_size, 3, self.uv_size, self.uv_size], device=images.device) 
         ## projection
@@ -208,7 +214,7 @@ class DECA(object):
             'uv_texture_gt': uv_texture_gt,
             'displacement_map': uv_z+self.fixed_uv_dis[None,None,:,:],
         }
-        if self.cfg.model.use_tex:
+        if self.cfg.model.use_tex or has_texture_image:
             opdict['albedo'] = albedo
             opdict['uv_texture'] = uv_texture
 
@@ -262,3 +268,84 @@ class DECA(object):
                         dense_faces,
                         colors = dense_colors,
                         inverse_face_order=True)
+
+    def save_obj_my_format(self, filename, opdict, albedo_to_opdict=False):
+        '''
+        vertices: [nv, 3], tensor
+        texture: [3, h, w], tensor
+        '''
+        i = 0
+        vertices = opdict['vertices'][i].cpu().numpy()
+        faces = self.render.faces[0].cpu().numpy()
+        texture = util.tensor2image(opdict['uv_texture_gt'][i])
+        uvcoords = self.render.raw_uvcoords[0].cpu().numpy()
+        uvfaces = self.render.uvfaces[0].cpu().numpy()
+        normal_map = util.tensor2image(opdict['uv_detail_normals'][i] * 0.5 + 0.5)
+        # upsample mesh, save detailed mesh
+        normals = opdict['normals'][i].cpu().numpy()
+        displacement_map = opdict['displacement_map'][i].cpu().numpy().squeeze()
+        # texture = texture[:,:,[2,1,0]]
+        # dense_vertices, dense_colors, dense_faces = util.upsample_mesh(vertices, normals, faces, displacement_map, texture, self.dense_template)
+
+        util.write_obj(filename, vertices, faces,
+                       texture=texture,
+                       uvcoords=uvcoords,
+                       uvfaces=uvfaces,
+                       normal_map=normal_map)
+
+        if albedo_to_opdict:
+            deb = opdict['uv_texture_gt'][i]
+            albedo = texture[:,:,[2,1,0]]/255   # we need bgr
+            albedo = torch.tensor(albedo).type(torch.float32).to(self.device)
+            albedo = torch.unsqueeze(albedo.permute(2,0,1), 0)
+            opdict['albedo'] = albedo
+
+        # experimental feature
+        opdict['normal_map'] = opdict['uv_detail_normals'][i] * 0.5 + 0.5
+
+    def get_meshes(self, opdict):
+        '''
+        vertices: [nv, 3], tensor
+        texture: [3, h, w], tensor
+        '''
+        vertices = opdict['vertices'][0].cpu().numpy()
+        faces = self.render.faces[0].cpu().numpy()
+        texture = util.tensor2image(opdict['uv_texture_gt'][0])
+        # save coarse mesh, with texture and normal map
+        # приводим из -1,1 к 0..1
+        normal_map = util.tensor2image(opdict['uv_detail_normals'][0] * 0.5 + 0.5)
+        # upsample mesh, save detailed mesh
+        texture = texture[:, :, [2, 1, 0]]
+        normals = opdict['normals'][0].cpu().numpy()
+        displacement_map = opdict['displacement_map'][0].cpu().numpy().squeeze()
+        dense_vertices, dense_colors, dense_faces = util.upsample_mesh(vertices, normals, faces, displacement_map,
+                                                                       texture, self.dense_template)
+        return texture, normal_map, normals, dense_vertices, dense_colors, dense_faces
+
+    def get_renderings(self, target_size, mesh_file, opdict):
+        #renderer = Renderer(target_size, obj_filename=mesh_file).to(self.device)
+        renderer = SRenderY(target_size, obj_filename=mesh_file).to(self.device)
+        rendering_results = renderer(vertices=opdict["vertices"],
+                                     transformed_vertices=opdict["transformed_vertices"],
+                                     albedos=opdict["albedo"],
+                                     lights=opdict["light"], light_type='point')
+        textured_image, normal = rendering_results['images'], rendering_results['normals']
+        albedo_image, pos_mask, shading_image, normal_image0 = rendering_results['albedo_images'], rendering_results['pos_mask'], \
+                                                 rendering_results['shading_images'], rendering_results['normal_images']
+        normal_image = renderer.render_normal(opdict["transformed_vertices"], normal)
+        # ---- postprocessing from GIF for visualisation, gives black background, but DECA has other format
+        normal_image2 = torch.floor(normal_image[0].clamp(0, 1) * 255).detach().cpu().numpy()
+        normal_image2 = cv2.cvtColor(normal_image2.astype('uint8').transpose((1, 2, 0)), cv2.COLOR_RGB2BGR)
+        normal_image = np.clip(np.rint((normal_image[0].detach().cpu().numpy() + 1.) / 2 * 255), a_min=0, a_max=255) # -1..1
+        normal_image = cv2.cvtColor(normal_image.astype('uint8').transpose((1, 2, 0)), cv2.COLOR_RGB2BGR)
+
+        textured_image = cv2.cvtColor(
+            (textured_image[0].detach().cpu().numpy() * 255).astype('uint8').transpose((1, 2, 0)), cv2.COLOR_RGB2BGR)
+
+        albedo_image = cv2.cvtColor((albedo_image[0].detach().cpu().numpy() * 255).astype('uint8').transpose((1, 2, 0)), cv2.COLOR_RGB2BGR)
+        #pos_mask = cv2.cvtColor((pos_mask[0,0].detach().cpu().numpy() * 255).astype('uint8'), cv2.COLOR_GRAY2BGR)
+        #shading_image = cv2.cvtColor((shading_image[0].detach().cpu().numpy() * 255).astype('uint8').transpose((1, 2, 0)), cv2.COLOR_RGB2BGR)
+        #normal_image0 = cv2.cvtColor((normal_image0[0].detach().cpu().numpy() * 255).astype(np.uint8).transpose((1,2,0)), cv2.COLOR_RGB2BGR)
+
+        # return textured_image, normal_image, albedo_image, pos_mask, shading_image, normal_image0
+        return textured_image, normal_image, albedo_image

@@ -1,3 +1,8 @@
+### How to use this fork
+Folder `user_scripts`:
+* `get_flame_params.py` - extracting frames from videofiles, getting and saving parameters for these frames
+
+
 # DECA: Detailed Expression Capture and Animation
 
 <p align="center"> 

@@ -1,0 +1,5 @@
+#to install all this requirements
+#`pip install -r requirements.txt`
+chumpy>=0.69
+opencv-python>=4.1.1
+face-alignment  
