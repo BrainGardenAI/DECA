@@ -17,9 +17,6 @@ from decalib.datasets import datasets
 from decalib.datasets.constants import *
 from decalib.utils.config import cfg as deca_cfg
 
-import gc
-gc.collect()
-
 do_show = False
 
 def main(args):
@@ -72,7 +69,7 @@ def main(args):
 
             # build flame model with our image and parameters and TEXTURE
             opdict, visdict = deca.decode(codedict)
-            opdict["light"] = codedict["light"]
+            opdict["light"] = None #codedict["light"] # using it results in too dark renders
             # first save mesh in .obj file
             if args.saveMeshes:
                 frame_dir, frame_name = os.path.split(frame_path)
