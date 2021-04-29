@@ -17,7 +17,7 @@ from decalib.datasets import datasets
 from decalib.datasets.constants import *
 from decalib.utils.config import cfg as deca_cfg
 
-do_show = True
+do_show = False
 
 def main(args):
     frameset_dir = args.frame_dataset_dir
@@ -36,11 +36,6 @@ def main(args):
         sample = framedir_data[i]
 
         source_codedict, target_codedict, target_frame_path, source_frame_path = sample
-        combined_codedict = target_codedict
-        # combined_codedict["pose"] = source_codedict["pose"]
-        combined_codedict["exp"] = source_codedict["exp"]
-        combined_codedict["tex"] = source_codedict["tex"]
-        combined_codedict["cam"] = source_codedict["cam"]
 
         # read frame (image)
         image = np.array(imread(target_frame_path))
@@ -50,7 +45,7 @@ def main(args):
             image = image[:, :, :3]
         h, w, _ = image.shape
         # crop head with saved bbox coordinates
-        cx, cy, size, isFace = combined_codedict["bbox"].tolist()
+        cx, cy, size, isFace = target_codedict["bbox"].tolist()
         if not isFace:
             continue
         target_size = 224
@@ -61,11 +56,22 @@ def main(args):
         dst_image = warp(dst_image, tform.inverse, output_shape=(target_size, target_size))
         dst_image = dst_image.transpose(2, 0, 1)
         # now we have a dictionary for decoding
-        combined_codedict["images"] = torch.tensor(dst_image).float().to(device)[None, ...]
+        target_codedict["images"] = torch.tensor(dst_image).float().to(device)[None, ...]
 
-        # build flame model with our image and parameters and TEXTURE
-        opdict, visdict = deca.decode(combined_codedict)
-        opdict["light"] = combined_codedict["light"] # !!!
+        # decode
+        opdict_t, visdict_t = deca.decode(target_codedict)
+
+        visdict_t = {x: visdict_t[x] for x in ['inputs', 'shape_detail_images']}
+        target_codedict["pose"] = source_codedict["pose"]
+        target_codedict["exp"] = source_codedict["exp"]
+        target_codedict["cam"] = source_codedict["cam"]
+        opdict_transfer, visdict_transfer = deca.decode(target_codedict)
+        visdict_t['transferred_shape'] = visdict_transfer['shape_detail_images']
+        opdict_transfer['uv_texture_gt'] = opdict_t['uv_texture_gt']
+
+        # we need transferred model
+        opdict = opdict_transfer
+
         # first save mesh in .obj file
         if args.saveMeshes:
             frame_dir, frame_name = os.path.split(target_frame_path)
@@ -82,21 +88,20 @@ def main(args):
         deca.save_obj_my_format(filename=mesh_path, opdict=opdict, albedo_to_opdict=True)
 
         # then get renders
-        opdict, visdict = deca.decode(combined_codedict)
-        opdict["light"] = combined_codedict["light"]  # !!!
+        opdict["light"] = None
         results = deca.get_renderings(target_size=target_size, mesh_file=mesh_path, opdict=opdict)
         textured_image, normal_image, albedo_image = results
         if not args.saveMeshes:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-        """# save renders
-        os.makedirs(os.path.join(dir, DIR_RENDERS_ORIG, DIR_RENDERS_TEX), exist_ok=True)
-        os.makedirs(os.path.join(dir, DIR_RENDERS_ORIG, DIR_RENDERS_NORM), exist_ok=True)
-        texture_path = os.path.join(dir, DIR_RENDERS_ORIG, DIR_RENDERS_TEX, FILE_RENDERS_TEX.format(frame_id))
-        normal_path = os.path.join(dir, DIR_RENDERS_ORIG, DIR_RENDERS_NORM, FILE_RENDERS_NORM.format(frame_id))
+        #"""# save renders
+        os.makedirs(os.path.join(os.path.split(dir)[0], DIR_RENDERS_ORIG, DIR_RENDERS_TEX), exist_ok=True)
+        os.makedirs(os.path.join(os.path.split(dir)[0], DIR_RENDERS_ORIG, DIR_RENDERS_NORM), exist_ok=True)
+        texture_path = os.path.join(os.path.split(dir)[0], DIR_RENDERS_ORIG, DIR_RENDERS_TEX, FILE_RENDERS_TEX.format(frame_id))
+        normal_path = os.path.join(os.path.split(dir)[0], DIR_RENDERS_ORIG, DIR_RENDERS_NORM, FILE_RENDERS_NORM.format(frame_id))
         cv2.imwrite(texture_path, textured_image)
         cv2.imwrite(normal_path, normal_image)
-        """
+        #"""
 
         if do_show:
             source = np.array(imread(source_frame_path))

@@ -1,3 +1,8 @@
+"""
+script for copying L videoframes and their corresponding FLAME param files
+from given directories to given target directory
+"""
+
 import os
 import shutil
 from decalib.datasets.constants import *
@@ -12,13 +17,14 @@ dirs = ["Norman Reedus Answers the Web's Most Searched Questions _ WIRED-z5MIL3K
         ]
 target_dir = "disk/sdb1/avatars/dataset_combined/2_445/target"
 
-os.makedirs(os.path.join(root, target_dir, DIR_FRAMES), exist_ok=False)
-os.makedirs(os.path.join(root, target_dir, DIR_PARAMS), exist_ok=False)
+os.makedirs(os.path.join(root, target_dir, DIR_FRAMES), exist_ok=True)
+os.makedirs(os.path.join(root, target_dir, DIR_PARAMS), exist_ok=True)
 
 all_frames_paths = []
 all_params_paths = []
 for d in dirs:
         frame_paths = [os.path.join(root, dir, d, DIR_FRAMES, file) for file in os.listdir(os.path.join(root, dir, d, DIR_FRAMES)) if os.path.splitext(file)[1] in FRAME_SUFFIX]
+        frame_paths = sorted(frame_paths)
         frame_numbers = [os.path.splitext(os.path.split(fp)[1])[0] for fp in frame_paths]
         param_paths = [os.path.join(root, dir, d, DIR_PARAMS, FILE_PARAMS_TEMP.format(fnum)) for fnum in frame_numbers]
         all_frames_paths.extend(frame_paths)

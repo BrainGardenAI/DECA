@@ -362,11 +362,4 @@ class CombinedDataset(Dataset):
             arr = np.reshape(in_array[start:stop], newshape=newshape)
             target_codedict[key] = torch.tensor(arr).type(paramtype).to(self.device) if key != "bbox" else arr
 
-        # combine parameters
-        combined_codedict = target_codedict
-        #combined_codedict["pose"] = source_codedict["pose"]
-        combined_codedict["exp"] = source_codedict["exp"]
-        combined_codedict["tex"] = source_codedict["tex"]
-        combined_codedict["cam"] = source_codedict["cam"]
-
         return source_codedict, target_codedict, target_frame_path, source_frame_path
