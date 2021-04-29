@@ -1,6 +1,7 @@
 ### How to use this fork
 Folder `user_scripts`:
 * `get_flame_params.py` - extracting frames from videofiles, getting and saving parameters for these frames
+* `get_original_renders.py` - using saved frames and parameters for generating texture and normal renders
 
 
 # DECA: Detailed Expression Capture and Animation
