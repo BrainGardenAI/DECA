@@ -315,3 +315,58 @@ class ProcessedDataset(Dataset):
             frames_params.append([frame_path, param_path])
 
         return frames_params
+
+class CombinedDataset(Dataset):
+
+    def __init__(self, frameset_dir, device='cuda'):
+        # Make sure that video dataset has required structure
+        if not os.path.isdir(frameset_dir):
+            print("ProcessedDataset in decalib/datasets/datasets.py: argument frame_dataset_dir is not a directory!")
+            exit()
+
+        self.device = device
+        self.frameset_dir = frameset_dir
+        frames_source_dir = os.path.join(frameset_dir, DIR_SOURCE, DIR_FRAMES)
+        frames_target_dir = os.path.join(frameset_dir, DIR_TARGET, DIR_FRAMES)
+        params_source_dir = os.path.join(frameset_dir, DIR_SOURCE, DIR_PARAMS)
+        params_target_dir = os.path.join(frameset_dir, DIR_TARGET, DIR_PARAMS)
+        self.frames_source = sorted(os.listdir(frames_source_dir))
+        self.frames_target = sorted(os.listdir(frames_target_dir))
+        self.params_source = sorted(os.listdir(params_source_dir))
+        self.params_target = sorted(os.listdir(params_target_dir))
+        assert len(self.frames_source) == len(self.frames_target) == len(self.params_source) == len(self.params_target), \
+            "We must have the same number of frames and param files for source and target!"
+
+        self.L = len(self.params_source)
+
+    def __len__(self):
+        return self.L
+
+    def __getitem__(self, index):
+        source_frame_path = os.path.join(self.frameset_dir, DIR_SOURCE, DIR_FRAMES, self.frames_source[index])
+        target_frame_path = os.path.join(self.frameset_dir, DIR_TARGET, DIR_FRAMES, self.frames_target[index])
+        source_params_path = os.path.join(self.frameset_dir, DIR_SOURCE, DIR_PARAMS, self.params_source[index])
+        target_params_path = os.path.join(self.frameset_dir, DIR_TARGET, DIR_PARAMS, self.params_target[index])
+
+        in_array = np.load(source_params_path)
+        source_codedict = {}
+        for key in PARAM_DICT_ARR:
+            start, stop, newshape, paramtype = PARAM_DICT_ARR[key]
+            arr = np.reshape(in_array[start:stop], newshape=newshape)
+            source_codedict[key] = torch.tensor(arr).type(paramtype).to(self.device) if key != "bbox" else arr
+
+        in_array = np.load(target_params_path)
+        target_codedict = {}
+        for key in PARAM_DICT_ARR:
+            start, stop, newshape, paramtype = PARAM_DICT_ARR[key]
+            arr = np.reshape(in_array[start:stop], newshape=newshape)
+            target_codedict[key] = torch.tensor(arr).type(paramtype).to(self.device) if key != "bbox" else arr
+
+        # combine parameters
+        combined_codedict = target_codedict
+        combined_codedict["pose"] = source_codedict["pose"]
+        combined_codedict["exp"] = source_codedict["exp"]
+        combined_codedict["tex"] = source_codedict["tex"]
+        combined_codedict["cam"] = source_codedict["cam"]
+
+        return combined_codedict, target_frame_path, source_frame_path
