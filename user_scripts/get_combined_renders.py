@@ -35,7 +35,12 @@ def main(args):
     for i in tqdm(range(len(framedir_data))):
         sample = framedir_data[i]
 
-        combined_codedict, target_frame_path, source_frame_path = sample
+        source_codedict, target_codedict, target_frame_path, source_frame_path = sample
+        combined_codedict = target_codedict
+        # combined_codedict["pose"] = source_codedict["pose"]
+        combined_codedict["exp"] = source_codedict["exp"]
+        combined_codedict["tex"] = source_codedict["tex"]
+        combined_codedict["cam"] = source_codedict["cam"]
 
         # read frame (image)
         image = np.array(imread(target_frame_path))
@@ -77,6 +82,8 @@ def main(args):
         deca.save_obj_my_format(filename=mesh_path, opdict=opdict, albedo_to_opdict=True)
 
         # then get renders
+        opdict, visdict = deca.decode(combined_codedict)
+        opdict["light"] = combined_codedict["light"]  # !!!
         results = deca.get_renderings(target_size=target_size, mesh_file=mesh_path, opdict=opdict)
         textured_image, normal_image, albedo_image = results
         if not args.saveMeshes:

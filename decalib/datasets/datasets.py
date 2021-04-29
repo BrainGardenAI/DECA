@@ -364,9 +364,9 @@ class CombinedDataset(Dataset):
 
         # combine parameters
         combined_codedict = target_codedict
-        combined_codedict["pose"] = source_codedict["pose"]
+        #combined_codedict["pose"] = source_codedict["pose"]
         combined_codedict["exp"] = source_codedict["exp"]
         combined_codedict["tex"] = source_codedict["tex"]
         combined_codedict["cam"] = source_codedict["cam"]
 
-        return combined_codedict, target_frame_path, source_frame_path
+        return source_codedict, target_codedict, target_frame_path, source_frame_path

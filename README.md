@@ -2,6 +2,7 @@
 Folder `user_scripts`:
 * `get_flame_params.py` - extracting frames from videofiles, getting and saving parameters for these frames
 * `get_original_renders.py` - using saved frames and parameters for generating texture and normal renders
+* `get_combined_renders.py` - combining parameters from different actors
 
 
 # DECA: Detailed Expression Capture and Animation
