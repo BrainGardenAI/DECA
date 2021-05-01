@@ -17,6 +17,8 @@ from decalib.datasets import datasets
 from decalib.datasets.constants import *
 from decalib.utils.config import cfg as deca_cfg
 
+# for testing the script
+do_write = False
 do_show = False
 
 def main(args):
@@ -26,9 +28,30 @@ def main(args):
     # make a list of all frame directories that we'll process
     framedir_data = datasets.ProcessedDataset(frameset_root)
 
+    # decide what texture renders and meshes we are saving now, and set corresponding DECA config parameters
+    if args.texture_type == "head_mask":
+        DIR_meshes = DIR_MESHES_HEADMASK
+        DIR_renders_tex = DIR_RENDERS_TEX_HEADMASK
+        FILE_renders_tex = FILE_RENDERS_TEX_HEADMASK
+        FILE_meshes_temp = FILE_MESHES_COARSE_TEMP_HEADMASK
+        deca_cfg.model.use_tex = False
+        deca_cfg.model.no_flametex_model = True # False is ok too, it doesn't matter here
+    elif args.texture_type == "head_render":
+        DIR_meshes = DIR_MESHES_HEADREND
+        DIR_renders_tex = DIR_RENDERS_TEX_HEADREND
+        FILE_renders_tex = FILE_RENDERS_TEX_HEADREND
+        FILE_meshes_temp = FILE_MESHES_COARSE_TEMP_HEADREND
+        deca_cfg.model.use_tex = True
+        deca_cfg.model.no_flametex_model = False
+    else:
+        DIR_meshes = DIR_MESHES
+        DIR_renders_tex = DIR_RENDERS_TEX
+        FILE_renders_tex = FILE_RENDERS_TEX
+        FILE_meshes_temp = FILE_MESHES_COARSE_TEMP
+        deca_cfg.model.use_tex = True
+        deca_cfg.model.no_flametex_model = True
+
     # run DECA
-    deca_cfg.model.use_tex = args.useTex
-    deca_cfg.model.no_flametex_model = True
     deca = DECA(config=deca_cfg, device=device)
 
     # loop over directories with frames extracted from video
@@ -76,8 +99,8 @@ def main(args):
                 frame_id = os.path.splitext(frame_name)[0]
                 dir, frame_dir = os.path.split(frame_dir)
                 assert frame_dir == DIR_FRAMES, "Video frames aren't placed in the .../frames directory!"
-                mesh_path = os.path.join(dir, DIR_MESHES, FILE_MESHES_COARSE_TEMP.format(frame_id))
-                os.makedirs(os.path.join(dir, DIR_MESHES), exist_ok=True)
+                mesh_path = os.path.join(dir, DIR_meshes, FILE_meshes_temp.format(frame_id))
+                os.makedirs(os.path.join(dir, DIR_meshes), exist_ok=True)
             else:
                 temp_dir = os.path.join(os.path.abspath(os.getcwd()), "temp")
                 os.makedirs(temp_dir, exist_ok=False)
@@ -92,9 +115,9 @@ def main(args):
                 shutil.rmtree(temp_dir, ignore_errors=True)
 
             # save renders
-            os.makedirs(os.path.join(dir, DIR_RENDERS_ORIG, DIR_RENDERS_TEX), exist_ok=True)
+            os.makedirs(os.path.join(dir, DIR_RENDERS_ORIG, DIR_renders_tex), exist_ok=True)
             os.makedirs(os.path.join(dir, DIR_RENDERS_ORIG, DIR_RENDERS_NORM), exist_ok=True)
-            texture_path = os.path.join(dir, DIR_RENDERS_ORIG, DIR_RENDERS_TEX, FILE_RENDERS_TEX.format(frame_id))
+            texture_path = os.path.join(dir, DIR_RENDERS_ORIG, DIR_renders_tex, FILE_renders_tex.format(frame_id))
             normal_path = os.path.join(dir, DIR_RENDERS_ORIG, DIR_RENDERS_NORM, FILE_RENDERS_NORM.format(frame_id))
             cv2.imwrite(texture_path, textured_image)
             cv2.imwrite(normal_path, normal_image)
@@ -106,6 +129,10 @@ def main(args):
                 # cv2.imshow('albedo_image', albedo_image)
                 cv2.waitKey()
                 cv2.destroyAllWindows()
+            if do_write:
+                outdir = "/disk/sdb1/avatars/sveta/TEMP/"
+                cv2.imwrite(os.path.join(outdir, FILE_renders_tex.format(frame_id)), textured_image)
+                #cv2.imwrite(os.path.join(outdir, FILE_RENDERS_NORM.format(frame_id)), normal_image)
 
 
 if __name__ == '__main__':
@@ -115,9 +142,8 @@ if __name__ == '__main__':
                         help='path to the processed dataset that contains frames')
     parser.add_argument('--device', default='cuda', type=str,
                         help='set device, cpu for using cpu, cuda for using gpu (default option)')
-    parser.add_argument('--useTex', default=True, type=lambda x: x.lower() in ['true', '1'],
-                        help='whether to use FLAME texture model to generate uv texture map, \
-                                set it to True only if you downloaded texture model')
+    parser.add_argument('--texture_type', default="only_face", type=str,
+                        help='what type of texture render we want: only_face, head_mask, head_render.')
     parser.add_argument('--saveMeshes', default=True, type=lambda x: x.lower() in ['true', '1'],
                         help='whether to save .obj files.')
     main(parser.parse_args())
