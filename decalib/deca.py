@@ -322,9 +322,9 @@ class DECA(object):
                                                                        texture, self.dense_template)
         return texture, normal_map, normals, dense_vertices, dense_colors, dense_faces
 
-    def get_renderings(self, target_size, mesh_file, opdict):
+    def get_renderings(self, target_size, mesh_file, opdict, uv_size=256,):
         #renderer = Renderer(target_size, obj_filename=mesh_file).to(self.device)
-        renderer = SRenderY(target_size, obj_filename=mesh_file).to(self.device)
+        renderer = SRenderY(target_size, uv_size=uv_size, obj_filename=mesh_file).to(self.device)
         rendering_results = renderer(vertices=opdict["vertices"],
                                      transformed_vertices=opdict["transformed_vertices"],
                                      albedos=opdict["albedo"],

@@ -141,7 +141,7 @@ class TestData(Dataset):
                 bbox, bbox_type = self.face_detector.run(image)
                 # if detector doesn't find head bbox, lie that the whole image is bbox (>_>)
                 if len(bbox) < 4:
-                    #print('no face detected! run original image') # TODO: надо что-то делать, как-то сохранять эту информацию
+                    #print('no face detected! run original image')
                     left = 0
                     top = 0
                     right = h-1

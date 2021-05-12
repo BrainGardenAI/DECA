@@ -10,6 +10,7 @@ import torch.nn.functional as F
 
 from decalib.datasets.constants import *
 
+
 mean_tex_path = "/home/s.orlova@dev.braingarden.ai/Projects/DECA/data/mean_texture_ORIG.jpg"
 tex_path = "/home/s.orlova@dev.braingarden.ai/Projects/DECA/data/FLAME_albedo_from_BFM.npz"
 texture_default = cv2.imread(mean_tex_path)
