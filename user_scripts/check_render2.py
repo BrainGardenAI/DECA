@@ -31,13 +31,13 @@ device = 'cuda'
 scale = 2
 target_size = 256
 deca_cfg.model.uv_size = 256
-deca_cfg.model.use_tex = True
+deca_cfg.model.use_tex = False
 deca_cfg.model.no_flametex_model = True
 deca = DECA(config=deca_cfg, device=device)
 
-frame_path = "disk/sdb1/avatars/dataset_processed/MelinaJuergens/real/Hellblade Senua's Sacrifice Interviews-nvWX2MUffuU-00.00.07.679-00.01.10.480-seg1/frames/00000.jpg"
-param_path = "disk/sdb1/avatars/dataset_processed/MelinaJuergens/real/Hellblade Senua's Sacrifice Interviews-nvWX2MUffuU-00.00.07.679-00.01.10.480-seg1/params/flame_00000.npy"
-obj_path = "disk/sdb1/avatars/dataset_processed/MelinaJuergens/real/Hellblade Senua's Sacrifice Interviews-nvWX2MUffuU-00.00.07.679-00.01.10.480-seg1/meshes/mesh_00000.obj"
+frame_path = "disk/sdb1/avatars/dataset_TEST/LeaSeydoux/real/gP0TI4i84Hg/frames/00004.jpg"
+param_path = "disk/sdb1/avatars/dataset_TEST/LeaSeydoux/real/gP0TI4i84Hg/params/flame_00004.npy"
+obj_path = "disk/sdb1/avatars/dataset_TEST/LeaSeydoux/real/gP0TI4i84Hg/meshes_headrend/mesh_00004.obj"
 
 in_array = np.load(os.path.join(path_prefix, param_path))
 codedict = {}
@@ -57,7 +57,8 @@ cx, cy, size, isFace = codedict["bbox"].tolist()
 if not isFace:
     sys.exit()
 src_pts = np.array([[cx - size / 2, cy - size / 2], [cx - size / 2, cy + size / 2], [cx + size / 2, cy - size / 2]])
-DST_PTS = np.array([[0, 0], [0, target_size - 1], [target_size - 1, 0]]) + np.array([[(scale-1)/2, (scale-1)/2]]) * target_size
+dst_correction = np.array([[(scale-1)/2, (scale-1)/2]]) * target_size
+DST_PTS = np.array([[0, 0], [0, target_size - 1], [target_size - 1, 0]]) + dst_correction
 tform = estimate_transform('similarity', src_pts, DST_PTS)
 dst_image = image / 255.
 dst_image = warp(dst_image, tform.inverse, output_shape=(target_size*scale, target_size*scale))
@@ -70,7 +71,7 @@ cv2.imwrite(os.path.join(parpath, "dst_img.jpg"), dst_image2)
 dst_image = dst_image.transpose(2, 0, 1)
 # now we have a dictionary for decoding
 codedict["images"] = torch.tensor(dst_image).float().to(device)[None, ...]
-codedict['cam'][:,0] /= scale
+codedict['cam'][:,0] /= 2
 
 # build flame model with our image and parameters and TEXTURE
 opdict, visdict = deca.decode(codedict)
@@ -90,9 +91,9 @@ shutil.rmtree(temp_dir, ignore_errors=True)
 
 if on_server:
     parpath = "/disk/sdb1/avatars/sveta/TEMP/DECA_cam/"
-    cv2.imwrite(os.path.join(parpath, "frame0.jpg"), cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
-    cv2.imwrite(os.path.join(parpath, "textured0.jpg"), textured_image)
-    cv2.imwrite(os.path.join(parpath, "normal0.jpg"), normal_image)
+    cv2.imwrite(os.path.join(parpath, "frame.jpg"), cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+    cv2.imwrite(os.path.join(parpath, "textured.jpg"), textured_image)
+    cv2.imwrite(os.path.join(parpath, "normal.jpg"), normal_image)
 else:
     cv2.imshow('frame', cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
     cv2.imshow('textured', textured_image)

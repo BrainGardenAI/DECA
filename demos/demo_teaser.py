@@ -74,7 +74,7 @@ def main(args):
             euler_pose[:,0] = k#torch.rand((self.batch_size))*160 - 80
             euler_pose[:,1] = 0#(torch.rand((self.batch_size))*60 - 30)*(2./euler_pose[:,1].abs())
             euler_pose[:,2] = 0#(torch.rand((self.batch_size))*60 - 30)*(2./euler_pose[:,1].abs())
-            jaw_pose = batch_euler2axis(deg2rad(euler_pose[:,:3].cuda())) 
+            jaw_pose = batch_euler2axis(deg2rad(euler_pose[:,:3].cuda()))
             codedict['pose'][:,3:] = jaw_pose
             _, visdict_view = deca.decode(codedict)     
             visdict_list[i]['exp'] = visdict_view['shape_detail_images']

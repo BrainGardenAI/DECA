@@ -69,6 +69,7 @@ def main(args):
                     start, stop, _, _ = PARAM_DICT_ARR[key]
                     out_array[start:stop] = codedict[key].cpu().numpy().flatten() if key != "bbox" else codedict[key]
                 np.save(paramfile_name, out_array)
+
             # If head bbox wasn't found and args.save_missing_bbox_csv == True, save frame to the file for missed frames
             elif args.save_missing_bbox_csv:
                 missing_bbox.append([name, framedata[i]['imagepath'], video_df["actor"], video_df["subset"],

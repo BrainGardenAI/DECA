@@ -22,6 +22,7 @@ do_write = False
 do_show = False
 
 def main(args):
+    target_size = 224
     frameset_root = args.frame_dataset_root
     device = args.device
 
@@ -80,7 +81,7 @@ def main(args):
             cx, cy, size, isFace = codedict["bbox"].tolist()
             if not isFace:
                 continue
-            target_size = 224
+
             src_pts = np.array([[cx - size / 2, cy - size / 2], [cx - size / 2, cy + size / 2], [cx + size / 2, cy - size / 2]])
             DST_PTS = np.array([[0, 0], [0, target_size - 1], [target_size - 1, 0]])
             tform = estimate_transform('similarity', src_pts, DST_PTS)
