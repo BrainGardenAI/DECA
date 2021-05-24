@@ -21,20 +21,26 @@ class FAN(object):
         import face_alignment
         self.model = face_alignment.FaceAlignment(face_alignment.LandmarksType._2D, flip_input=False)
 
-    def run(self, image):
+    def run(self, image, return_kpt=False):
         '''
         image: 0-255, uint8, rgb, [h, w, 3]
         return: detected box list
         '''
         out = self.model.get_landmarks(image)
         if out is None:
-            return [0], 'no_detection'
+            if return_kpt:
+                return [0], 'no_detection', None
+            else:
+                return [0], 'no_detection'
         else:
             kpt = out[0].squeeze()
             left, right = np.min(kpt[:,0]), np.max(kpt[:,0])
             top, bottom = np.min(kpt[:,1]), np.max(kpt[:,1])
             bbox = [left, top, right, bottom]
-            return bbox, 'kpt68'
+            if return_kpt:
+                return bbox, 'kpt68', kpt
+            else:
+                return bbox, 'kpt68'
 
 class MTCNN(object):
     def __init__(self, device = 'cpu'):

@@ -22,7 +22,7 @@ device =  "cuda"
 do_write = False
 do_show = False
 
-target_size = 224
+target_size = 224 # resulting images will be target_scale*scale
 texture_type = "head_mask" # only_face, head_mask, head_render
 fullhead = True
 saveMeshes = False

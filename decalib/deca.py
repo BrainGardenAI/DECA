@@ -322,7 +322,7 @@ class DECA(object):
                                                                        texture, self.dense_template)
         return texture, normal_map, normals, dense_vertices, dense_colors, dense_faces
 
-    def get_renderings(self, target_size, mesh_file, opdict, uv_size=256,):
+    def get_renderings(self, target_size, mesh_file, opdict, uv_size=256, more_data=False):
         #renderer = Renderer(target_size, obj_filename=mesh_file).to(self.device)
         renderer = SRenderY(target_size, uv_size=uv_size, obj_filename=mesh_file).to(self.device)
         rendering_results = renderer(vertices=opdict["vertices"],
@@ -342,10 +342,13 @@ class DECA(object):
         textured_image = cv2.cvtColor(
             (textured_image[0].detach().cpu().numpy() * 255).astype('uint8').transpose((1, 2, 0)), cv2.COLOR_RGB2BGR)
 
-        albedo_image = cv2.cvtColor((albedo_image[0].detach().cpu().numpy() * 255).astype('uint8').transpose((1, 2, 0)), cv2.COLOR_RGB2BGR)
-        #pos_mask = cv2.cvtColor((pos_mask[0,0].detach().cpu().numpy() * 255).astype('uint8'), cv2.COLOR_GRAY2BGR)
-        #shading_image = cv2.cvtColor((shading_image[0].detach().cpu().numpy() * 255).astype('uint8').transpose((1, 2, 0)), cv2.COLOR_RGB2BGR)
+        albedo_image = cv2.cvtColor((np.clip(np.rint(albedo_image[0].detach().cpu().numpy() * 255), a_min=0, a_max=255)).astype('uint8').transpose((1, 2, 0)), cv2.COLOR_RGB2BGR)
+        pos_mask = cv2.cvtColor((np.clip(np.rint(pos_mask[0,0].detach().cpu().numpy() * 255), a_min=0, a_max=255)).astype('uint8'), cv2.COLOR_GRAY2BGR)
+        shading_image = cv2.cvtColor((np.clip(np.rint(shading_image[0].detach().cpu().numpy() * 255), a_min=0, a_max=255)).astype('uint8').transpose((1, 2, 0)), cv2.COLOR_RGB2BGR)
         #normal_image0 = cv2.cvtColor((normal_image0[0].detach().cpu().numpy() * 255).astype(np.uint8).transpose((1,2,0)), cv2.COLOR_RGB2BGR)
 
         # return textured_image, normal_image, albedo_image, pos_mask, shading_image, normal_image0
-        return textured_image, normal_image, albedo_image
+        if more_data:
+            return textured_image, normal_image, albedo_image, shading_image, pos_mask
+        else:
+            return textured_image, normal_image, albedo_image
