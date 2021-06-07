@@ -102,7 +102,7 @@ scale = 2
 #video = "5-LeaSeydoux"
 domain = "virtual"
 
-# you possibly won't change this
+# you possibly won't change this (DECA input size)
 image_crop_size = 224
 
 # ============================================================================================================
@@ -160,11 +160,11 @@ def generate_data(actor, video):
         frame_id = os.path.splitext(frame)[0]
 
         renddir = os.path.join(renders_out_root, actor, domain, video)
-        normal_path = os.path.join(renddir, DIR_RENDERS_ORIG, DIR_RENDERS_NORM, FILE_FRAME_TEMP.format(frame_id))
-        pos_mask_path = os.path.join(renddir, DIR_RENDERS_ORIG, DIR_RENDERS_POS, FILE_FRAME_TEMP.format(frame_id))
-        texture_path = os.path.join(renddir, DIR_RENDERS_ORIG, DIR_renders_tex, FILE_FRAME_TEMP.format(frame_id))
-        albedo_path = os.path.join(renddir, DIR_RENDERS_ORIG, DIR_albedos, FILE_FRAME_TEMP.format(frame_id))
-        shading_path = os.path.join(renddir, DIR_RENDERS_ORIG, DIR_shadows, FILE_FRAME_TEMP.format(frame_id))
+        normal_path = os.path.join(renddir, DIR_RENDERS_NORM, FILE_FRAME_TEMP.format(frame_id))
+        pos_mask_path = os.path.join(renddir, DIR_RENDERS_POS, FILE_FRAME_TEMP.format(frame_id))
+        texture_path = os.path.join(renddir, DIR_renders_tex, FILE_FRAME_TEMP.format(frame_id))
+        albedo_path = os.path.join(renddir, DIR_albedos, FILE_FRAME_TEMP.format(frame_id))
+        shading_path = os.path.join(renddir, DIR_shadows, FILE_FRAME_TEMP.format(frame_id))
 
         # DECA ENCODE
         # get param dict
@@ -258,11 +258,11 @@ def generate_data(actor, video):
         #exit()
 
         # save renders
-        os.makedirs(os.path.join(renddir, DIR_RENDERS_ORIG, DIR_RENDERS_NORM), exist_ok=True)
-        os.makedirs(os.path.join(renddir, DIR_RENDERS_ORIG, DIR_RENDERS_POS), exist_ok=True)
-        os.makedirs(os.path.join(renddir, DIR_RENDERS_ORIG, DIR_renders_tex), exist_ok=True)
-        os.makedirs(os.path.join(renddir, DIR_RENDERS_ORIG, DIR_shadows), exist_ok=True)
-        os.makedirs(os.path.join(renddir, DIR_RENDERS_ORIG, DIR_albedos), exist_ok=True)
+        os.makedirs(os.path.split(normal_path)[0], exist_ok=True)
+        os.makedirs(os.path.split(pos_mask_path)[0], exist_ok=True)
+        os.makedirs(os.path.split(texture_path)[0], exist_ok=True)
+        os.makedirs(os.path.split(shading_path)[0], exist_ok=True)
+        os.makedirs(os.path.split(albedo_path)[0], exist_ok=True)
         cv2.imwrite(normal_path, normal_image)
         cv2.imwrite(pos_mask_path, pos_mask)
         cv2.imwrite(texture_path, textured_image)
@@ -304,7 +304,7 @@ actorvideo = (("LeaSeydoux", "5-LeaSeydoux"),
               ("NormanReedus", "35-NormanReedus"),
               ("NormanReedus", "42-NormanReedus"))
 
-actorvideo = (("LeaSeydoux", "5-LeaSeydoux"),)
+#actorvideo = (("LeaSeydoux", "5-LeaSeydoux"),)
 
 for i, (a, v) in enumerate(actorvideo):
     print("{}/{}".format(i+1, len(actorvideo)))
