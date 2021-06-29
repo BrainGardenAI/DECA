@@ -538,16 +538,16 @@ def plot_kpts(image, kpts, color = 'r'):
     kpts = kpts.copy()
 
     for i in range(kpts.shape[0]):
-        st = kpts[i, :2]
+        st = np.rint(kpts[i, :2]).astype(np.int)
         if kpts.shape[1]==4:
             if kpts[i, 3] > 0.5:
                 c = (0, 255, 0)
             else:
                 c = (0, 0, 255)
-        image = cv2.circle(image,(st[0], st[1]), 1, c, 2)  
+        image = cv2.circle(image, (st[0], st[1]), 1, c, 2)
         if i in end_list:
             continue
-        ed = kpts[i + 1, :2]
+        ed = np.rint(kpts[i + 1, :2]).astype(np.int)
         image = cv2.line(image, (st[0], st[1]), (ed[0], ed[1]), (255, 255, 255), 1)
 
     return image

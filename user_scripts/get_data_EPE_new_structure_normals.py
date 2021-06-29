@@ -80,38 +80,10 @@ def image_preprocessing(imagepath, crop_size, face_too_close=False):
             'isFace': isFace,
             'kpt': kpt}
 
-# ============================================================================================================
-
-device =  "cuda"
-# for testing the script
-do_write = False
-do_show = False
-
-target_size = 512 # resulting renders will be target_scale*scale
-
-texture_type = "head_render" # only_face, head_mask, head_render
-fullhead = True
-
-frames_root = "/disk/sdb1/avatars/dataset_processed/"
-renders_out_root = "/disk/sdb1/avatars/dataset_EPE_data1/"
-
-scale = 2
-
-# ---- video file info ----
-#actor = "LeaSeydoux"
-#video = "5-LeaSeydoux"
-domain = "real"
-
-# you possibly won't change this (DECA input size)
-image_crop_size = 224
-
-# ============================================================================================================
-
-def generate_data(actor, video):
-    framedir = "" if actor == "MelinaJuergens" and video == "hb2" else "frames"
+def generate_data(subset, video):
 
     # make a list of all frame directories that we'll process
-    inp_framedir = os.path.join(frames_root, actor, domain, video, framedir)
+    inp_framedir = os.path.join(frames_root, subset, domain, video, "frames")
     frames = sorted([f for f in os.listdir(inp_framedir) if os.path.splitext(f)[1] in FRAME_SUFFIX])
     L = len(frames)
 
@@ -155,16 +127,15 @@ def generate_data(actor, video):
 
     # loop over directories with frames extracted from video
     print("start iterating..")
-    for i, frame in enumerate(frames):
+    for frame in tqdm(frames):
         frame_path = os.path.join(inp_framedir, frame)
         frame_id = os.path.splitext(frame)[0]
 
-        renddir = os.path.join(renders_out_root, actor, domain, video)
+        renddir = os.path.join(renders_out_root, subset, domain, video)
         normal_path = os.path.join(renddir, DIR_RENDERS_NORM, FILE_FRAME_TEMP.format(frame_id))
-        pos_mask_path = os.path.join(renddir, DIR_RENDERS_POS, FILE_FRAME_TEMP.format(frame_id))
-        texture_path = os.path.join(renddir, DIR_renders_tex, FILE_FRAME_TEMP.format(frame_id))
-        albedo_path = os.path.join(renddir, DIR_albedos, FILE_FRAME_TEMP.format(frame_id))
-        shading_path = os.path.join(renddir, DIR_shadows, FILE_FRAME_TEMP.format(frame_id))
+
+        if os.path.exists(normal_path):
+            continue
 
         # DECA ENCODE
         # get param dict
@@ -188,18 +159,6 @@ def generate_data(actor, video):
         if not isFace:
             continue
 
-        # DEB
-        """
-        outdir = "/disk/sdb1/avatars/extra_repo/DECA/temp"
-        cv2.rectangle(image, pt1=(int(cx - size / 2), int(cy - size / 2)), pt2=(int(cx + size / 2), int(cy + size / 2)), color=(0,255,0), thickness=4)
-        #print("kpt:", preprocessed_data["kpt"][:5])
-        #exit()
-        for pt in preprocessed_data["kpt"]:
-            cv2.circle(image, center=(int(pt[0]), int(pt[1])), radius = 4, color = (128, 0, 128), thickness=-1)
-        cv2.imwrite(os.path.join(outdir, "Lea6_{}.jpg".format(frame_id)), cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
-        exit()
-        """
-
         src_pts = np.array([[cx - size / 2, cy - size / 2], [cx - size / 2, cy + size / 2], [cx + size / 2, cy - size / 2]])
         dst_correction = np.array([[(scale - 1) / 2, (scale - 1) / 2]]) * target_size
         DST_PTS = np.array([[0, 0], [0, target_size - 1], [target_size - 1, 0]]) + dst_correction
@@ -213,7 +172,7 @@ def generate_data(actor, video):
 
         # DECODING
         # build flame model with our image and parameters and TEXTURE
-        print("decoding..")
+        #print("decoding..")
         opdict, visdict = deca.decode(codedict)
         opdict["light"] = codedict["light"]
 
@@ -239,73 +198,54 @@ def generate_data(actor, video):
 
         # resize renders
         tform = estimate_transform('similarity', src_pts, dst_pts)
-        textured_image = warp(textured_image / 255., tform.inverse, output_shape=(H, W))
         normal_image = warp(normal_image / 255., tform.inverse, output_shape=(H, W), cval=0.502)  # we need 128, not 127
-        albedo_image = warp(albedo_image / 255., tform.inverse, output_shape=(H, W))
-        shading_image = warp(shading_image / 255., tform.inverse, output_shape=(H, W), cval=0.797)  # we need 203
-        pos_mask = warp(pos_mask / 255., tform.inverse, output_shape=(H, W))
-        textured_image = np.clip(textured_image * 255, a_min=0, a_max=255).astype(np.uint8)
         normal_image = np.clip(normal_image * 255, a_min=0, a_max=255).astype(np.uint8)
-        albedo_image = np.clip(albedo_image * 255, a_min=0, a_max=255).astype(np.uint8)
-        shading_image = np.clip(shading_image * 255, a_min=0, a_max=255).astype(np.uint8)
-        pos_mask = np.clip(pos_mask * 255, a_min=0, a_max=255).astype(np.uint8)
-
-        # remove all background of a shading image using pos_mask
-        kernel = np.ones((5, 5), np.uint8)
-        shading_image = np.rint(shading_image * (cv2.dilate(pos_mask, kernel, iterations=1)/255.)).astype(np.uint8)
-
-        #print("\n\nshading background value: {}".format(shading_image[3,3]))
-        #exit()
 
         # save renders
         os.makedirs(os.path.split(normal_path)[0], exist_ok=True)
-        os.makedirs(os.path.split(pos_mask_path)[0], exist_ok=True)
-        os.makedirs(os.path.split(texture_path)[0], exist_ok=True)
-        os.makedirs(os.path.split(shading_path)[0], exist_ok=True)
-        os.makedirs(os.path.split(albedo_path)[0], exist_ok=True)
         cv2.imwrite(normal_path, normal_image)
-        cv2.imwrite(pos_mask_path, pos_mask)
-        cv2.imwrite(texture_path, textured_image)
-        cv2.imwrite(shading_path, shading_image)
-        cv2.imwrite(albedo_path, albedo_image)
 
         if do_show:
-            cv2.imshow('frame', cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
-            cv2.imshow('textured', textured_image)
             cv2.imshow('normal', normal_image)
-            # cv2.imshow('albedo_image', albedo_image)
             cv2.waitKey()
             cv2.destroyAllWindows()
         if do_write:
-            print("shading min: {}, max: {}".format(np.min(shading_image), np.max(shading_image)))
+            #print("shading min: {}, max: {}".format(np.min(shading_image), np.max(shading_image)))
             outdir = "/disk/sdb1/avatars/extra_repo/TEMP"
-            cv2.imwrite(os.path.join(outdir, FILE_FRAME_TEMP.format(frame_id)), cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
-            cv2.imwrite(os.path.join(outdir, FILE_renders_tex.format(frame_id)), textured_image)
-            cv2.imwrite(os.path.join(outdir, FILE_albedos.format(frame_id)), albedo_image)
-            cv2.imwrite(os.path.join(outdir, FILE_shadows.format(frame_id)), shading_image)
-            cv2.imwrite(os.path.join(outdir, FILE_RENDERS_POS.format(frame_id)), pos_mask)
             cv2.imwrite(os.path.join(outdir, FILE_RENDERS_NORM.format(frame_id)), normal_image)
             exit()
 
-        print("{}/{} || [{}] {} [{}]: ".format(i+1, L, actor, video, frame_path))
-        # there are some invalid files
-        if actor == "MelinaJuergens" and video == "hb2" and i == 415:
-            break
-    print("Done! {}, {}".format(actor, video))
+    print("Done! {}, {}".format(subset, video))
 
+# ============================================================================================================
 
-actorvideo = (("LeaSeydoux", "5-LeaSeydoux"),
-              ("LeaSeydoux", "8-LeaSeydoux"),
-              ("LeaSeydoux", "9-LeaSeydoux"),
-              ("MelinaJuergens", "hellblade1"),
-              ("MelinaJuergens", "hb2"),
-              ("NormanReedus", "17-NormanReedus"),
-              ("NormanReedus", "18-NormanReedus"),
-              ("NormanReedus", "35-NormanReedus"),
-              ("NormanReedus", "42-NormanReedus"))
+device =  "cuda"
+# for testing the script
+do_write = False
+do_show = False
 
-#actorvideo = (("LeaSeydoux", "5-LeaSeydoux"),)
+target_size = 512 # resulting renders will be target_scale*scale
 
-for i, (a, v) in enumerate(actorvideo):
-    print("{}/{}".format(i+1, len(actorvideo)))
-    generate_data(actor=a, video=v)
+texture_type = "head_mask" # only_face, head_mask, head_render
+fullhead = True
+
+frames_root = "/disk/sdb1/avatars/dataset_EPE_data1/"
+renders_out_root = "/disk/sdb1/avatars/dataset_EPE_data1/"
+
+scale = 2
+
+# ---- video file info ----
+domain = "real"
+subset = "train"
+
+# you possibly won't change this (DECA input size)
+image_crop_size = 224
+
+# ============================================================================================================
+
+datadir = os.path.join(frames_root, subset, domain)
+videos = [videodir for videodir in os.listdir(datadir) if os.path.isdir(os.path.join(datadir, videodir))]
+Lv = len(videos)
+for i, v in enumerate(videos):
+    print(f"{i+1}/{Lv}")
+    generate_data(subset=subset, video=v)
