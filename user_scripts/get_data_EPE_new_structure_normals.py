@@ -236,7 +236,7 @@ scale = 2
 
 # ---- video file info ----
 domain = "real"
-subset = "train"
+subset = "val"
 
 # you possibly won't change this (DECA input size)
 image_crop_size = 224

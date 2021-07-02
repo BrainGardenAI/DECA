@@ -138,6 +138,12 @@ def generate_data(subset, video):
         albedo_path = os.path.join(renddir, DIR_albedos, FILE_FRAME_TEMP.format(frame_id))
         shading_path = os.path.join(renddir, DIR_shadows, FILE_FRAME_TEMP.format(frame_id))
 
+        rendtypes = ("normals", "pos_mask", "texture", "shading", "albedo")
+        paths = (normal_path, pos_mask_path, texture_path, shading_path, albedo_path)
+
+        if not any([(rt in what_to_save) and not os.path.exists(p) for rt, p in zip(rendtypes, paths)]):
+            continue
+
         # DECA ENCODE
         # get param dict
         preprocessed_data = image_preprocessing(frame_path,
@@ -273,7 +279,7 @@ def generate_data(subset, video):
 # ============================================================================================================
 
 device =  "cuda"
-# for testing the script
+# to test the script
 do_write = False
 do_show = False
 
@@ -282,14 +288,14 @@ target_size = 512 # resulting renders will be target_scale*scale
 texture_type = "head_mask" # only_face, head_mask, head_render
 fullhead = True
 
-frames_root = "/disk/sdb1/avatars/dataset_EPE_data1/"
-renders_out_root = "/disk/sdb1/avatars/dataset_EPE_data1/"
+frames_root = "/disk/sdb1/avatars/dataset_EPE_data2/FullEPEDataset/"
+renders_out_root = "/disk/sdb1/avatars/dataset_EPE_data2/FullEPEDataset/"
 
 scale = 2
 
 # ---- video file info ----
 domain = "real"
-subset = "train"
+subset = ""  #"train"
 
 # you possibly won't change this (DECA input size)
 image_crop_size = 224
